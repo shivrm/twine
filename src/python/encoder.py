@@ -113,6 +113,10 @@ handlers: dict[str, function] = {
     'list': handle_list
 }
 
+def set_handler(data_type: type, handler: function) -> None:
+    type_name = data_type.__name__
+    handlers[type_name] = handler
+
 def encode(data) -> bytearray:
     type_name: str = type(data).__name__
 
