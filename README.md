@@ -24,7 +24,7 @@ twine has 5 built-in data types:
  - `bool`: for storing values such as `true`, `false` and `null`
  - `int`: for storing integers
  - `float`: for storing floating-point values
- - `char`: for storing a single UTF-8 character
+ - `str`: for storing a string of UTF-8 characters
  - `array`: for storing a sequence of data structures.
  - ⚠️ a `map` type may be implemented in future to store key-value pairs
 
@@ -37,7 +37,7 @@ Each data type also has several sub-types:
 
  - `float32`, `float64`, and `float128` for storing single, double and quadruple precision floats. There are also subtypes for `Infinity`, `-Infinity` and `NaN` ⚠️ Does not distinguish between quiet NaN and signalling NaN
 
- - `char` does not have any subtypes
+ - `str` does not have any subtypes
 
  - `array` does not have any subtypes. ⚠️ A `fixed-type array` subtype could be added to specify that all elements in the array are of the same type.
 
@@ -65,7 +65,7 @@ Each data type also has several sub-types:
 	 - `+Inf`: `0100`
 	 - `-Inf`: `1100`
 
- - `char`: `0100 xxxx`
+ - `str`: `0100 xxxx`
 	 - subtype: `0000`
 
  - `array`: `0101 xxxx`

@@ -1,4 +1,5 @@
-from math import log, ceil
+from math import log, ceil, isnan
+from struct import pack as struct_pack, unpack as struct_unpack
 
 def _ceil_divide(dividend: float, divisor: int) -> int:
     # https://stackoverflow.com/a/17511341/16990573
@@ -53,10 +54,46 @@ def handle_int(data: int) -> bytearray:
     return bytearray([type_byte, *data_bytes])
 
 def handle_float(data: float) -> bytearray:
-    pass
+    # Check for NaN (NaN != NaN) and both infinities
+    if data != data:
+        return bytearray([0x30])
+    
+    elif data == float('inf'):
+        return bytearray([0x34])
+    
+    elif data == float('-inf'):
+        return bytearray([0x3b])
+    
+    # Convert to single precision float
+    single_precision_bytes = struct_pack('f', data)
+    single_precision_value = struct_unpack('f', single_precision_bytes)[0]
+
+    # If single-precision float does not have any loss of precision, then
+    # store as a single-precision float. If there is loss of precision,
+    # then store as double-precision float.
+    if data == single_precision_value:
+        data_bytes = single_precision_value
+        type_byte = 0x31
+    
+    else:
+        data_bytes = struct_unpack('d', data)
+        type_byte = 0x32
+    
+    # Return a bytearray containing the type byte and the data
+    return bytearray([type_byte, *data_bytes])
 
 def handle_str(data: str) -> bytearray:
-    pass
+    # Convert data to bytes with UTF-8 encoding
+    data_bytes = data.encode("utf8")
+    
+    # Calculate type byte and byte indicating length. Length is stored as
+    # a twine int data structure
+    type_byte = 0x40
+    length_bytes = handle_int(len(data))
+
+    # Return a bytearray containing type_byte, the length data
+    # and the character data itself.
+    return bytearray([type_byte, *length_bytes, *data_bytes])
 
 def handle_list(data: list) -> bytearray:
     pass
