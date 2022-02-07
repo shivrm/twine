@@ -1,3 +1,5 @@
+from struct import unpack as struct_unpack
+
 from typing import Callable
 
 class DecodeError(Exception):
@@ -41,13 +43,60 @@ def handle_int(subtype, twine_stream):
     return decoded_int
 
 def handle_float(subtype, twine_stream):
-    pass
+    # Handle NaN and infinities
+    print(subtype)
+    if subtype == 0x0:
+        return float("nan")
+    
+    elif subtype == 0x4:
+        return float("inf")
+    
+    elif subtype == 0xb:
+        return float("-inf")
+    
+    # Float precision type is encoded in last 2 bytes of subtype
+    precision = subtype & 0x03
+    
+    # Single precision
+    if precision == 0x01:
+        unpack_type = 'f'
+        byte_count = 4
+    
+    # Double precision
+    elif precision == 0x02:
+        unpack_type = 'd'
+        byte_count = 8
+        
+    # NOTE: Quadruple precision support has not been added yet
+    else:
+        error_msg = f"Unknown float subtype: {hex(subtype)}"
+        raise DecodeError(error_msg)
+    
+    # Get data from twine stream into a bytearray
+    data_bytes = bytearray()
+    for _ in range(byte_count):
+        next_byte = next(twine_stream)
+        data_bytes.append(next_byte)
+        
+    # Construct float of correct precision from data_bytes
+    decoded_float = struct_unpack(unpack_type, data_bytes)[0]
+    
+    return decoded_float
 
 def handle_str(subtype, twine_stream):
     pass
 
 def handle_list(subtype, twine_stream):
-    pass
+    decoded_list = [] # Elements will be added to this list after decoding
+    # Get length, encoded as an int, from the twine
+    length = decode(twine_stream)
+    
+    # Decode each element of the list and append it to the list
+    for _ in range(length):
+        decoded_element = decode(twine_stream)
+        decoded_list.append(decoded_element)
+        
+    return decoded_list
 
 handlers: dict[int, Callable] = {
     0x10: handle_bool,
