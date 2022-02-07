@@ -86,17 +86,23 @@ def handle_str(data: str) -> bytearray:
     # Convert data to bytes with UTF-8 encoding
     data_bytes = data.encode("utf8")
     
-    # Calculate type byte and byte indicating length. Length is stored as
-    # a twine int data structure
     type_byte = 0x40
     length_bytes = handle_int(len(data))
 
-    # Return a bytearray containing type_byte, the length data
-    # and the character data itself.
     return bytearray([type_byte, *length_bytes, *data_bytes])
 
 def handle_list(data: list) -> bytearray:
-    pass
+    
+    # Create a bytearray containing all elements
+    # in the list, encoded as data structures.
+    data_bytes = bytearray()
+    for element in data:
+        data_bytes.append(*encode(element))
+    
+    type_byte = 0x50
+    length_bytes = handle_int(len(data))
+    
+    return bytearray([type_byte, *length_bytes, *data_bytes])
 
 handlers: dict[str, function] = {
     'NoneType': handle_none,
