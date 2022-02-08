@@ -154,9 +154,8 @@ handlers: dict[int, Callable] = {
 }
 
 
-def set_handler(data_type: type, handler: Callable) -> None:
-    type_name = data_type.__name__
-    handlers[type_name] = handler
+def set_handler(type_code: int, handler: Callable) -> None:
+    handlers[type_code] = handler
 
 
 def decode(twine: bytearray):
