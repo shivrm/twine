@@ -146,6 +146,10 @@ handlers: dict[int, Callable] = {
     0x50: handle_list
 }
 
+def set_handler(data_type: type, handler: Callable) -> None:
+    type_name = data_type.__name__
+    handlers[type_name] = handler
+
 def decode(twine: bytearray):
     twine_stream = iter(twine)
     
