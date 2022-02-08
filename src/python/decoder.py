@@ -83,8 +83,48 @@ def handle_float(subtype, twine_stream):
     
     return decoded_float
 
+def get_single_utf8_char(twine_stream):
+    
+    # Get first byte of character.
+    first_byte = next(twine_stream)
+    
+    
+    # Determine how long the character is using the first byte
+    if first_byte & 0xf0 == 0xf0:
+        bytes_to_read = 3
+        
+    elif first_byte & 0xe0 == 0xe0:
+        bytes_to_read = 2
+    
+    elif first_byte & 0xc0 == 0xe0:
+        bytes_to_read = 1
+    
+    elif not first_byte & 0x80:
+        bytes_to_read = 0
+    else:
+        error_msg = "invalid UTF-8 sequence"
+        raise DecodeError(error_msg)
+    
+    # Read bytes from the stream into a bytearray
+    data_bytes = bytearray([first_byte])
+    for _ in range(bytes_to_read):
+        byte_read = next(twine_stream)
+        data_bytes.append(byte_read)
+    
+    # Decode bytes to str and return
+    return bytes(data_bytes).decode('utf8')
+    
 def handle_str(subtype, twine_stream):
-    pass
+    decoded_str = "" # Chars will be added to this str after decoding
+    # Get length, encoded as an int, from the twine
+    length = decode(twine_stream)
+
+    # Decode each char and append it to the str
+    for _ in range(length):
+        decoded_char = get_single_utf8_char(twine_stream)
+        decoded_str += decoded_char
+        
+    return decoded_str
 
 def handle_list(subtype, twine_stream):
     decoded_list = [] # Elements will be added to this list after decoding
