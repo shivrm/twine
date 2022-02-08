@@ -51,7 +51,7 @@ def handle_int(data: int) -> bytearray:
     # Calculate data structure type byte from `is_negative` and the
     # number of bytes. 0x20 specifies the int type.
     signed_flag = is_negative << 3
-    int_type_index = int(log(actual_byte_count * 2, 2))
+    int_type_index = int(log(actual_byte_count, 2) + 1)
     type_byte = 0x20 + signed_flag + int_type_index
 
     # Convert the data to a bytes object, unsigned unless it's negative
