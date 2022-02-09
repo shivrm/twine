@@ -14,19 +14,20 @@ class EncodeError(Exception):
 
 
 def handle_none(data: None) -> bytearray:
-    return bytearray([0x13])
+    yield 0x13
 
 
 def handle_bool(data: bool) -> bytearray:
     # Return 0x10 if data is False, 0x11 if it is True.
-    return bytearray([0x10 + data])
+    yield 0x10 + data
 
 
 def handle_int(data: int) -> bytearray:
 
     # Check for zero as it does not work with log
     if data == 0:
-        return bytearray([0x21, 0x00])
+        yield from [0x21, 0x00]
+        return
 
     is_negative = data < 0
 
@@ -54,23 +55,25 @@ def handle_int(data: int) -> bytearray:
     int_type_index = int(log(actual_byte_count, 2) + 1)
     type_byte = 0x20 + signed_flag + int_type_index
 
-    # Convert the data to a bytes object, unsigned unless it's negative
-    data_bytes = data.to_bytes(actual_byte_count, byteorder="big", signed=is_negative)
+    yield type_byte
 
-    # Return a bytearray containing the type byte and the data
-    return bytearray([type_byte, *data_bytes])
+    # Convert the data to a bytes object, then yield it
+    yield from data.to_bytes(actual_byte_count, byteorder="big", signed=is_negative)
 
 
 def handle_float(data: float) -> bytearray:
     # Check for NaN (NaN != NaN) and both infinities
     if data != data:
-        return bytearray([0x30])
+        yield 0x30
+        return
 
     elif data == float("inf"):
-        return bytearray([0x34])
+        yield 0x34
+        return
 
     elif data == float("-inf"):
-        return bytearray([0x3B])
+        yield 0x3b
+        return
 
     # Convert to single precision float
     single_precision_bytes: bytes = struct_pack("f", data)
@@ -80,40 +83,30 @@ def handle_float(data: float) -> bytearray:
     # store as a single-precision float. If there is loss of precision,
     # then store as double-precision float.
     if data == single_precision_value:
-        data_bytes = single_precision_bytes
-        type_byte = 0x31
-
+        # Yield type byte, and then the bytes for the single-precision float
+        yield 0x31
+        yield from single_precision_bytes
+        
     else:
-        data_bytes = struct_pack("d", data)
-        type_byte = 0x32
-
-    # Return a bytearray containing the type byte and the data
-    return bytearray([type_byte, *data_bytes])
+        # Yield type byte, and then the bytes for the double-precision float
+        yield 0x32
+        yield from struct_pack("d", data)
 
 
 def handle_str(data: str) -> bytearray:
-    # Convert data to bytes with UTF-8 encoding
-    data_bytes = data.encode("utf8")
-
-    type_byte = 0x40
-    length_bytes = handle_int(len(data))
-
-    return bytearray([type_byte, *length_bytes, *data_bytes])
+    yield 0x40 # Yield type byte
+    yield from handle_int(len(data)) # Yield length bytes
+    yield from data.encode("utf8") # Yield char data
 
 
 def handle_list(data: list) -> bytearray:
 
-    # Create a bytearray containing all elements
-    # in the list, encoded as data structures.
-    data_bytes = bytearray()
+    yield 0x50 # Yield type byte
+    yield from handle_int(len(data)) # Yield length bytes
+
+    # Yield each element after encoding it
     for element in data:
-        data_bytes.extend(encode(element))
-
-    type_byte = 0x50
-    length_bytes = handle_int(len(data))
-
-    return bytearray([type_byte, *length_bytes, *data_bytes])
-
+        yield from encode(element)
 
 handlers: dict[str, Callable] = {
     "NoneType": handle_none,
@@ -124,13 +117,12 @@ handlers: dict[str, Callable] = {
     "list": handle_list,
 }
 
-
 def set_handler(data_type: type, handler: Callable) -> None:
     type_name = data_type.__name__
     handlers[type_name] = handler
 
 
-def encode(data) -> bytearray:
+def encode(data):
     type_name: str = type(data).__name__
 
     # Verify that a handler exists for the data
@@ -141,4 +133,4 @@ def encode(data) -> bytearray:
     handler: Callable = handlers.get(type_name)
     encoded: bytearray = handler(data)
 
-    return encoded
+    yield from encoded

@@ -32,7 +32,7 @@ def handle_int(subtype: int, twine_stream: Iterator) -> int:
     # Calculate the number of bytes. Last 3 bits of subtype are calculated
     # using log(byte_count, 2) - 1. We can reverse this to obtain the byte
     # count from the last 2 digits.
-    byte_count: int = 2 ** (subtype & 0x07 - 1)
+    byte_count: int = 2 ** ((subtype & 0x07) - 1)
 
     # Get data from twine stream into a bytearray
     data_bytes = bytearray()
@@ -48,7 +48,6 @@ def handle_int(subtype: int, twine_stream: Iterator) -> int:
 
 def handle_float(subtype: int, twine_stream: Iterator) -> float:
     # Handle NaN and infinities
-    print(subtype)
     if subtype == 0x0:
         return float("nan")
 
