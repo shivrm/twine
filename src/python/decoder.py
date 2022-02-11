@@ -1,7 +1,19 @@
 from struct import unpack as struct_unpack
 
-from typing import Callable, Iterator, Union
+from typing import BinaryIO, Callable, Iterator, Union
 
+def _file_to_stream(file: BinaryIO, chunk_size=512):
+    while True:
+        # Read while not EOF
+        
+        data = file.read(chunk_size)
+        
+        if not data:
+            # EOF
+            break
+        
+        # Yield each byte
+        yield from data
 
 class DecodeError(Exception):
     pass
@@ -121,7 +133,7 @@ def get_single_utf8_char(twine_stream: Iterator) -> str:
 def handle_str(subtype: int, twine_stream: Iterator) -> str:
     decoded_str = ""  # Chars will be added to this str after decoding
     # Get length, encoded as an int, from the twine
-    length = decode(twine_stream)
+    length = handle_any(twine_stream)
 
     # Decode each char and append it to the str
     for _ in range(length):
@@ -134,11 +146,11 @@ def handle_str(subtype: int, twine_stream: Iterator) -> str:
 def handle_list(subtype, twine_stream):
     decoded_list = []  # Elements will be added to this list after decoding
     # Get length, encoded as an int, from the twine
-    length = decode(twine_stream)
+    length = handle_any(twine_stream)
 
     # Decode each element of the list and append it to the list
     for _ in range(length):
-        decoded_element = decode(twine_stream)
+        decoded_element = handle_any(twine_stream)
         decoded_list.append(decoded_element)
 
     return decoded_list
@@ -157,9 +169,7 @@ def set_handler(type_code: int, handler: Callable) -> None:
     handlers[type_code] = handler
 
 
-def decode(twine: bytearray):
-    twine_stream = iter(twine)
-
+def handle_any(twine_stream):
     # Get the data type and subtype
     type_byte = next(twine_stream)
     data_type, subtype = type_byte & 0xF0, type_byte & 0x0F
@@ -172,4 +182,20 @@ def decode(twine: bytearray):
     handler = handlers.get(data_type)
     decoded = handler(subtype, twine_stream)
 
+    return decoded
+
+def load(file: BinaryIO, chunk_size=512):
+    # Convert file to stream
+    stream = _file_to_stream(file, chunk_size=chunk_size)
+    
+    # Decode the data and return it
+    decoded = handle_any(stream)
+    return decoded
+
+def loadb(data: bytearray):
+    # Convert data to stream (iterator)
+    stream = iter(data)
+
+    # Decode the data and return it
+    decoded = handle_any(stream)
     return decoded

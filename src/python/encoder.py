@@ -1,8 +1,7 @@
-from io import TextIOWrapper
 from math import log, ceil
 from struct import pack as struct_pack, unpack as struct_unpack
 
-from typing import Callable
+from typing import Callable, BinaryIO
 
 
 def _ceil_divide(dividend: float, divisor: int) -> int:
@@ -157,7 +156,7 @@ def handle_any(data):
 
     yield from encoded
 
-def dump(data, file: TextIOWrapper, chunk_size: int=512):
+def dump(data, file: BinaryIO, chunk_size: int=512):
     # Encode the data
     encoded = handle_any(data)
     
