@@ -1,3 +1,4 @@
+from io import TextIOWrapper
 from math import log, ceil
 from struct import pack as struct_pack, unpack as struct_unpack
 
@@ -8,7 +9,28 @@ def _ceil_divide(dividend: float, divisor: int) -> int:
     # https://stackoverflow.com/a/17511341/16990573
     return -(dividend // -divisor)
 
-
+def _iter_to_byte_chunks(iterable, chunk_size=512):
+    # Items in current chunk, and number of items in current chunk
+    chunk_content = bytearray()
+    content_size = 0
+    
+    # Iterate over the iterable and add each to the chunk
+    for item in iterable:
+        chunk_content.append(item)
+        content_size += 1
+        
+        # If the chunk contains as many elements as the chunk size,
+        # then yield the chunk, and begin a new chunk
+        if content_size == chunk_size:
+            yield chunk_content
+            
+            chunk_content = bytearray()
+            content_size = 0
+            
+    # If there are any remaining elements, yield them as well
+    if content_size:
+        yield chunk_content
+    
 class EncodeError(Exception):
     pass
 
@@ -106,7 +128,7 @@ def handle_list(data: list) -> bytearray:
 
     # Yield each element after encoding it
     for element in data:
-        yield from encode(element)
+        yield from handle_any(element)
 
 handlers: dict[str, Callable] = {
     "NoneType": handle_none,
@@ -122,7 +144,7 @@ def set_handler(data_type: type, handler: Callable) -> None:
     handlers[type_name] = handler
 
 
-def encode(data):
+def handle_any(data):
     type_name: str = type(data).__name__
 
     # Verify that a handler exists for the data
@@ -134,3 +156,21 @@ def encode(data):
     encoded: bytearray = handler(data)
 
     yield from encoded
+
+def dump(data, file: TextIOWrapper, chunk_size: int=512):
+    # Encode the data
+    encoded = handle_any(data)
+    
+    # Write to file in chunks
+    for chunk in _iter_to_byte_chunks(encoded, chunk_size):
+        file.write(chunk)
+        
+def dumpb(data, lazy=False):
+    # Encode the data
+    encoded = handle_any(data)
+    
+    # Return as generator if lazy, else convert it into a bytearray
+    if lazy:
+        return encoded
+    else:
+        return bytearray(encoded)
