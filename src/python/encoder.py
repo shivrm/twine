@@ -34,16 +34,16 @@ class EncodeError(Exception):
     pass
 
 
-def handle_none(data: None) -> bytearray:
+def _handle_none(data: None) -> bytearray:
     yield 0x13
 
 
-def handle_bool(data: bool) -> bytearray:
+def _handle_bool(data: bool) -> bytearray:
     # Return 0x10 if data is False, 0x11 if it is True.
     yield 0x10 + data
 
 
-def handle_int(data: int) -> bytearray:
+def _handle_int(data: int) -> bytearray:
 
     # Check for zero as it does not work with log
     if data == 0:
@@ -82,7 +82,7 @@ def handle_int(data: int) -> bytearray:
     yield from data.to_bytes(actual_byte_count, byteorder="big", signed=is_negative)
 
 
-def handle_float(data: float) -> bytearray:
+def _handle_float(data: float) -> bytearray:
     # Check for NaN (NaN != NaN) and both infinities
     if data != data:
         yield 0x30
@@ -114,51 +114,51 @@ def handle_float(data: float) -> bytearray:
         yield from struct_pack("d", data)
 
 
-def handle_str(data: str) -> bytearray:
+def _handle_str(data: str) -> bytearray:
     yield 0x40 # Yield type byte
-    yield from handle_int(len(data)) # Yield length bytes
+    yield from _handle_int(len(data)) # Yield length bytes
     yield from data.encode("utf8") # Yield char data
 
 
-def handle_list(data: list) -> bytearray:
+def _handle_list(data: list) -> bytearray:
 
     yield 0x50 # Yield type byte
-    yield from handle_int(len(data)) # Yield length bytes
+    yield from _handle_int(len(data)) # Yield length bytes
 
     # Yield each element after encoding it
     for element in data:
-        yield from handle_any(element)
+        yield from _handle_any(element)
 
-handlers: dict[str, Callable] = {
-    "NoneType": handle_none,
-    "bool": handle_bool,
-    "int": handle_int,
-    "float": handle_float,
-    "str": handle_str,
-    "list": handle_list,
+_handlers: dict[str, Callable] = {
+    "NoneType": _handle_none,
+    "bool": _handle_bool,
+    "int": _handle_int,
+    "float": _handle_float,
+    "str": _handle_str,
+    "list": _handle_list,
 }
 
 def set_handler(data_type: type, handler: Callable) -> None:
     type_name = data_type.__name__
-    handlers[type_name] = handler
+    _handlers[type_name] = handler
 
 
-def handle_any(data):
+def _handle_any(data):
     type_name: str = type(data).__name__
 
     # Verify that a handler exists for the data
-    if type_name not in handlers:
+    if type_name not in _handlers:
         error_msg = f"type {type_name!r} has no handler"
         raise EncodeError(error_msg)
 
-    handler: Callable = handlers.get(type_name)
+    handler: Callable = _handlers.get(type_name)
     encoded: bytearray = handler(data)
 
     yield from encoded
 
 def dump(data, file: BinaryIO, chunk_size: int=512):
     # Encode the data
-    encoded = handle_any(data)
+    encoded = _handle_any(data)
     
     # Write to file in chunks
     for chunk in _iter_to_byte_chunks(encoded, chunk_size):
@@ -166,7 +166,7 @@ def dump(data, file: BinaryIO, chunk_size: int=512):
         
 def dumpb(data, lazy=False):
     # Encode the data
-    encoded = handle_any(data)
+    encoded = _handle_any(data)
     
     # Return as generator if lazy, else convert it into a bytearray
     if lazy:
