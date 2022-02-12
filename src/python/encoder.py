@@ -178,7 +178,7 @@ def dump(data, file: BinaryIO, chunk_size: int = 512) -> None:
         file.write(chunk)
 
 
-def dumpb(data, lazy=False) -> Union[bytearray, Generator]:
+def dumpb(data, lazy=False) -> Union[bytes, Generator]:
     """Encodes data and return as a bytearray
 
     Args:
@@ -187,14 +187,14 @@ def dumpb(data, lazy=False) -> Union[bytearray, Generator]:
         as a generator. Defaults to False.
 
     Returns:
-        Union[bytearray, generator]: A generator or bytearray containing
+        Union[bytes, generator]: A generator or bytes object containing
         the encoded data.
     """
     # Encode the data
     encoded = _handle_any(data)
 
-    # Return as generator if lazy, else convert it into a bytearray
+    # Return as generator if lazy, else convert it into a bytes object
     if lazy:
         return encoded
     else:
-        return bytearray(encoded)
+        return bytes(encoded)
