@@ -1,6 +1,6 @@
 from struct import unpack as struct_unpack
 
-from typing import BinaryIO, Callable, Iterator, Union
+from typing import Any, BinaryIO, Callable, Iterator, Union
 
 def _file_to_stream(file: BinaryIO, chunk_size=512):
     while True:
@@ -169,7 +169,7 @@ def set_handler(type_code: int, handler: Callable) -> None:
     _handlers[type_code] = handler
 
 
-def _handle_any(twine_stream):
+def _handle_any(twine_stream) -> Any:
     # Get the data type and subtype
     type_byte = next(twine_stream)
     data_type, subtype = type_byte & 0xF0, type_byte & 0x0F
@@ -184,7 +184,17 @@ def _handle_any(twine_stream):
 
     return decoded
 
-def load(file: BinaryIO, chunk_size=512):
+def load(file: BinaryIO, chunk_size=512) -> Any:
+    """Loads twine data from a file object
+
+    Args:
+        file (BinaryIO): A file opened in 'rb' mode
+        chunk_size (int, optional): File will be read in
+        chunks of this size. Defaults to 512.
+
+    Returns:
+        any: The decoded data
+    """
     # Convert file to stream
     stream = _file_to_stream(file, chunk_size=chunk_size)
     
@@ -192,7 +202,15 @@ def load(file: BinaryIO, chunk_size=512):
     decoded = _handle_any(stream)
     return decoded
 
-def loadb(data: bytearray):
+def loadb(data: bytes) -> Any:
+    """Loads twine data from a bytearray
+
+    Args:
+        data (bytes): Twine data as a bytes or bytearray
+
+    Returns:
+        any: The decoded data
+    """
     # Convert data to stream (iterator)
     stream = iter(data)
 

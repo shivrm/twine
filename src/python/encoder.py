@@ -1,14 +1,14 @@
 from math import log, ceil
 from struct import pack as struct_pack, unpack as struct_unpack
 
-from typing import Callable, BinaryIO
+from typing import Union, Generator, Callable, BinaryIO
 
 
 def _ceil_divide(dividend: float, divisor: int) -> int:
     # https://stackoverflow.com/a/17511341/16990573
     return -(dividend // -divisor)
 
-def _iter_to_byte_chunks(iterable, chunk_size=512):
+def _iter_to_byte_chunks(iterable, chunk_size=512) -> Generator:
     # Items in current chunk, and number of items in current chunk
     chunk_content = bytearray()
     content_size = 0
@@ -34,16 +34,16 @@ class EncodeError(Exception):
     pass
 
 
-def _handle_none(data: None) -> bytearray:
+def _handle_none(data: None) -> Generator:
     yield 0x13
 
 
-def _handle_bool(data: bool) -> bytearray:
+def _handle_bool(data: bool) -> Generator:
     # Return 0x10 if data is False, 0x11 if it is True.
     yield 0x10 + data
 
 
-def _handle_int(data: int) -> bytearray:
+def _handle_int(data: int) -> Generator:
 
     # Check for zero as it does not work with log
     if data == 0:
@@ -82,7 +82,7 @@ def _handle_int(data: int) -> bytearray:
     yield from data.to_bytes(actual_byte_count, byteorder="big", signed=is_negative)
 
 
-def _handle_float(data: float) -> bytearray:
+def _handle_float(data: float) -> Generator:
     # Check for NaN (NaN != NaN) and both infinities
     if data != data:
         yield 0x30
@@ -114,13 +114,13 @@ def _handle_float(data: float) -> bytearray:
         yield from struct_pack("d", data)
 
 
-def _handle_str(data: str) -> bytearray:
+def _handle_str(data: str) -> Generator:
     yield 0x40 # Yield type byte
     yield from _handle_int(len(data)) # Yield length bytes
     yield from data.encode("utf8") # Yield char data
 
 
-def _handle_list(data: list) -> bytearray:
+def _handle_list(data: list) -> Generator:
 
     yield 0x50 # Yield type byte
     yield from _handle_int(len(data)) # Yield length bytes
@@ -143,7 +143,7 @@ def set_handler(data_type: type, handler: Callable) -> None:
     _handlers[type_name] = handler
 
 
-def _handle_any(data):
+def _handle_any(data) -> Generator:
     type_name: str = type(data).__name__
 
     # Verify that a handler exists for the data
@@ -156,7 +156,15 @@ def _handle_any(data):
 
     yield from encoded
 
-def dump(data, file: BinaryIO, chunk_size: int=512):
+def dump(data, file: BinaryIO, chunk_size: int=512) -> None:
+    """Encode data and write to a file
+
+    Args:
+        data (any): The data to encode
+        file (BinaryIO): A file opened in wb mode
+        chunk_size (int, optional): Size of each chunk written to the
+        file. Defaults to 512.
+    """
     # Encode the data
     encoded = _handle_any(data)
     
@@ -164,7 +172,18 @@ def dump(data, file: BinaryIO, chunk_size: int=512):
     for chunk in _iter_to_byte_chunks(encoded, chunk_size):
         file.write(chunk)
         
-def dumpb(data, lazy=False):
+def dumpb(data, lazy=False) -> Union[bytearray, Generator]:
+    """Encodes data and return as a bytearray
+
+    Args:
+        data (any): The data to encode
+        lazy (bool, optional): Whether encoded data should be returned
+        as a generator. Defaults to False.
+
+    Returns:
+        Union[bytearray, generator]: A generator or bytearray containing
+        the encoded data.
+    """
     # Encode the data
     encoded = _handle_any(data)
     
