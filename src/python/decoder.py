@@ -1,13 +1,27 @@
 from struct import unpack as struct_unpack
 
-from typing import Callable, Iterator, Union
+from typing import Any, BinaryIO, Callable, Iterator, Union
+
+
+def _file_to_stream(file: BinaryIO, chunk_size=512):
+    while True:
+        # Read while not EOF
+
+        data = file.read(chunk_size)
+
+        if not data:
+            # EOF
+            break
+
+        # Yield each byte
+        yield from data
 
 
 class DecodeError(Exception):
     pass
 
 
-def handle_bool(subtype: int, twine_stream: Iterator) -> Union[bool, None]:
+def _handle_bool(subtype: int, twine_stream: Iterator) -> Union[bool, None]:
     # bool data is stored in the subtype itself and can be determined
     # without reading from the twine stream
     if subtype == 0x00:
@@ -24,7 +38,7 @@ def handle_bool(subtype: int, twine_stream: Iterator) -> Union[bool, None]:
         raise DecodeError(error_msg)
 
 
-def handle_int(subtype: int, twine_stream: Iterator) -> int:
+def _handle_int(subtype: int, twine_stream: Iterator) -> int:
 
     # Specifies whether the integer is signed - stored in highest bit
     is_signed = bool(subtype & 0x08)
@@ -32,7 +46,7 @@ def handle_int(subtype: int, twine_stream: Iterator) -> int:
     # Calculate the number of bytes. Last 3 bits of subtype are calculated
     # using log(byte_count, 2) - 1. We can reverse this to obtain the byte
     # count from the last 2 digits.
-    byte_count: int = 2 ** (subtype & 0x07 - 1)
+    byte_count: int = 2 ** ((subtype & 0x07) - 1)
 
     # Get data from twine stream into a bytearray
     data_bytes = bytearray()
@@ -46,9 +60,8 @@ def handle_int(subtype: int, twine_stream: Iterator) -> int:
     return decoded_int
 
 
-def handle_float(subtype: int, twine_stream: Iterator) -> float:
+def _handle_float(subtype: int, twine_stream: Iterator) -> float:
     # Handle NaN and infinities
-    print(subtype)
     if subtype == 0x0:
         return float("nan")
 
@@ -88,7 +101,7 @@ def handle_float(subtype: int, twine_stream: Iterator) -> float:
     return decoded_float
 
 
-def get_single_utf8_char(twine_stream: Iterator) -> str:
+def _get_single_utf8_char(twine_stream: Iterator) -> str:
 
     # Get first byte of character.
     first_byte = next(twine_stream)
@@ -119,58 +132,92 @@ def get_single_utf8_char(twine_stream: Iterator) -> str:
     return bytes(data_bytes).decode("utf8")
 
 
-def handle_str(subtype: int, twine_stream: Iterator) -> str:
+def _handle_str(subtype: int, twine_stream: Iterator) -> str:
     decoded_str = ""  # Chars will be added to this str after decoding
     # Get length, encoded as an int, from the twine
-    length = decode(twine_stream)
+    length = _handle_any(twine_stream)
 
     # Decode each char and append it to the str
     for _ in range(length):
-        decoded_char = get_single_utf8_char(twine_stream)
+        decoded_char = _get_single_utf8_char(twine_stream)
         decoded_str += decoded_char
 
     return decoded_str
 
 
-def handle_list(subtype, twine_stream):
+def _handle_list(subtype, twine_stream):
     decoded_list = []  # Elements will be added to this list after decoding
     # Get length, encoded as an int, from the twine
-    length = decode(twine_stream)
+    length = _handle_any(twine_stream)
 
     # Decode each element of the list and append it to the list
     for _ in range(length):
-        decoded_element = decode(twine_stream)
+        decoded_element = _handle_any(twine_stream)
         decoded_list.append(decoded_element)
 
     return decoded_list
 
 
-handlers: dict[int, Callable] = {
-    0x10: handle_bool,
-    0x20: handle_int,
-    0x30: handle_float,
-    0x40: handle_str,
-    0x50: handle_list,
+_decoders: dict[int, Callable] = {
+    0x10: _handle_bool,
+    0x20: _handle_int,
+    0x30: _handle_float,
+    0x40: _handle_str,
+    0x50: _handle_list,
 }
 
 
-def set_handler(type_code: int, handler: Callable) -> None:
-    handlers[type_code] = handler
+def set_decoder(type_code: int, decoder: Callable) -> None:
+    _decoders[type_code] = decoder
 
 
-def decode(twine: bytearray):
-    twine_stream = iter(twine)
-
+def _handle_any(twine_stream) -> Any:
     # Get the data type and subtype
     type_byte = next(twine_stream)
     data_type, subtype = type_byte & 0xF0, type_byte & 0x0F
 
     # Verify that a handler exists for the data
-    if data_type not in handlers:
-        error_msg = f"type {hex(data_type)} has no handler"
+    if data_type not in _decoders:
+        error_msg = f"type {hex(data_type)} has no decoder"
         raise DecodeError(error_msg)
 
-    handler = handlers.get(data_type)
-    decoded = handler(subtype, twine_stream)
+    decoder = _decoders.get(data_type)
+    decoded = decoder(subtype, twine_stream)
 
+    return decoded
+
+
+def load(file: BinaryIO, chunk_size=512) -> Any:
+    """Loads twine data from a file object
+
+    Args:
+        file (BinaryIO): A file opened in 'rb' mode
+        chunk_size (int, optional): File will be read in
+        chunks of this size. Defaults to 512.
+
+    Returns:
+        any: The decoded data
+    """
+    # Convert file to stream
+    stream = _file_to_stream(file, chunk_size=chunk_size)
+
+    # Decode the data and return it
+    decoded = _handle_any(stream)
+    return decoded
+
+
+def loadb(data: bytes) -> Any:
+    """Loads twine data from a bytearray
+
+    Args:
+        data (bytes): Twine data as a bytes or bytearray
+
+    Returns:
+        any: The decoded data
+    """
+    # Convert data to stream (iterator)
+    stream = iter(data)
+
+    # Decode the data and return it
+    decoded = _handle_any(stream)
     return decoded

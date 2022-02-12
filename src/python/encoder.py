@@ -1,7 +1,7 @@
 from math import log, ceil
 from struct import pack as struct_pack, unpack as struct_unpack
 
-from typing import Callable
+from typing import Union, Generator, Callable, BinaryIO
 
 
 def _ceil_divide(dividend: float, divisor: int) -> int:
@@ -9,24 +9,48 @@ def _ceil_divide(dividend: float, divisor: int) -> int:
     return -(dividend // -divisor)
 
 
+def _iter_to_byte_chunks(iterable, chunk_size=512) -> Generator:
+    # Items in current chunk, and number of items in current chunk
+    chunk_content = bytearray()
+    content_size = 0
+
+    # Iterate over the iterable and add each to the chunk
+    for item in iterable:
+        chunk_content.append(item)
+        content_size += 1
+
+        # If the chunk contains as many elements as the chunk size,
+        # then yield the chunk, and begin a new chunk
+        if content_size == chunk_size:
+            yield chunk_content
+
+            chunk_content = bytearray()
+            content_size = 0
+
+    # If there are any remaining elements, yield them as well
+    if content_size:
+        yield chunk_content
+
+
 class EncodeError(Exception):
     pass
 
 
-def handle_none(data: None) -> bytearray:
-    return bytearray([0x13])
+def _handle_none(data: None) -> Generator:
+    yield 0x13
 
 
-def handle_bool(data: bool) -> bytearray:
+def _handle_bool(data: bool) -> Generator:
     # Return 0x10 if data is False, 0x11 if it is True.
-    return bytearray([0x10 + data])
+    yield 0x10 + data
 
 
-def handle_int(data: int) -> bytearray:
+def _handle_int(data: int) -> Generator:
 
     # Check for zero as it does not work with log
     if data == 0:
-        return bytearray([0x21, 0x00])
+        yield from [0x21, 0x00]
+        return
 
     is_negative = data < 0
 
@@ -54,23 +78,25 @@ def handle_int(data: int) -> bytearray:
     int_type_index = int(log(actual_byte_count, 2) + 1)
     type_byte = 0x20 + signed_flag + int_type_index
 
-    # Convert the data to a bytes object, unsigned unless it's negative
-    data_bytes = data.to_bytes(actual_byte_count, byteorder="big", signed=is_negative)
+    yield type_byte
 
-    # Return a bytearray containing the type byte and the data
-    return bytearray([type_byte, *data_bytes])
+    # Convert the data to a bytes object, then yield it
+    yield from data.to_bytes(actual_byte_count, byteorder="big", signed=is_negative)
 
 
-def handle_float(data: float) -> bytearray:
+def _handle_float(data: float) -> Generator:
     # Check for NaN (NaN != NaN) and both infinities
     if data != data:
-        return bytearray([0x30])
+        yield 0x30
+        return
 
     elif data == float("inf"):
-        return bytearray([0x34])
+        yield 0x34
+        return
 
     elif data == float("-inf"):
-        return bytearray([0x3B])
+        yield 0x3B
+        return
 
     # Convert to single precision float
     single_precision_bytes: bytes = struct_pack("f", data)
@@ -80,65 +106,95 @@ def handle_float(data: float) -> bytearray:
     # store as a single-precision float. If there is loss of precision,
     # then store as double-precision float.
     if data == single_precision_value:
-        data_bytes = single_precision_bytes
-        type_byte = 0x31
+        # Yield type byte, and then the bytes for the single-precision float
+        yield 0x31
+        yield from single_precision_bytes
 
     else:
-        data_bytes = struct_pack("d", data)
-        type_byte = 0x32
-
-    # Return a bytearray containing the type byte and the data
-    return bytearray([type_byte, *data_bytes])
+        # Yield type byte, and then the bytes for the double-precision float
+        yield 0x32
+        yield from struct_pack("d", data)
 
 
-def handle_str(data: str) -> bytearray:
-    # Convert data to bytes with UTF-8 encoding
-    data_bytes = data.encode("utf8")
-
-    type_byte = 0x40
-    length_bytes = handle_int(len(data))
-
-    return bytearray([type_byte, *length_bytes, *data_bytes])
+def _handle_str(data: str) -> Generator:
+    yield 0x40  # Yield type byte
+    yield from _handle_int(len(data))  # Yield length bytes
+    yield from data.encode("utf8")  # Yield char data
 
 
-def handle_list(data: list) -> bytearray:
+def _handle_list(data: list) -> Generator:
 
-    # Create a bytearray containing all elements
-    # in the list, encoded as data structures.
-    data_bytes = bytearray()
+    yield 0x50  # Yield type byte
+    yield from _handle_int(len(data))  # Yield length bytes
+
+    # Yield each element after encoding it
     for element in data:
-        data_bytes.extend(encode(element))
-
-    type_byte = 0x50
-    length_bytes = handle_int(len(data))
-
-    return bytearray([type_byte, *length_bytes, *data_bytes])
+        yield from _handle_any(element)
 
 
-handlers: dict[str, Callable] = {
-    "NoneType": handle_none,
-    "bool": handle_bool,
-    "int": handle_int,
-    "float": handle_float,
-    "str": handle_str,
-    "list": handle_list,
+_encoders: dict[str, Callable] = {
+    "NoneType": _handle_none,
+    "bool": _handle_bool,
+    "int": _handle_int,
+    "float": _handle_float,
+    "str": _handle_str,
+    "list": _handle_list,
 }
 
 
-def set_handler(data_type: type, handler: Callable) -> None:
+def set_encoder(data_type: type, encoder: Callable) -> None:
     type_name = data_type.__name__
-    handlers[type_name] = handler
+    _encoders[type_name] = encoder
 
 
-def encode(data) -> bytearray:
+def _handle_any(data) -> Generator:
     type_name: str = type(data).__name__
 
     # Verify that a handler exists for the data
-    if type_name not in handlers:
-        error_msg = f"type {type_name!r} has no handler"
+    if type_name not in _encoders:
+        error_msg = f"type {type_name!r} has no encoder"
         raise EncodeError(error_msg)
 
-    handler: Callable = handlers.get(type_name)
-    encoded: bytearray = handler(data)
+    encoder: Callable = _encoders.get(type_name)
+    encoded: bytearray = encoder(data)
 
-    return encoded
+    yield from encoded
+
+
+def dump(data, file: BinaryIO, chunk_size: int = 512) -> None:
+    """Encode data and write to a file
+
+    Args:
+        data (any): The data to encode
+        file (BinaryIO): A file opened in wb mode
+        chunk_size (int, optional): Size of each chunk written to the
+        file. Defaults to 512.
+    """
+    # Encode the data
+    encoded = _handle_any(data)
+
+    # Write to file in chunks
+    for chunk in _iter_to_byte_chunks(encoded, chunk_size):
+        file.write(chunk)
+
+
+def dumpb(data, lazy=False) -> Union[bytes, Generator]:
+    """Encodes data and return as a bytearray
+
+    Args:
+        data (any): The data to encode
+        lazy (bool, optional): Whether encoded data should be returned
+        as a generator. Defaults to False.
+
+    Returns:
+        Union[bytes, generator]: A generator or bytes object containing
+        the encoded data.
+    """
+    # Encode the data
+    encoded = _handle_any(data)
+
+    # Return as generator if lazy, else convert it into a bytes object
+    if lazy:
+        return encoded
+    else:
+        return bytes(encoded)
