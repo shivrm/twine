@@ -156,7 +156,7 @@ def _handle_list(subtype, twine_stream):
     return decoded_list
 
 
-_handlers: dict[int, Callable] = {
+_decoders: dict[int, Callable] = {
     0x10: _handle_bool,
     0x20: _handle_int,
     0x30: _handle_float,
@@ -165,8 +165,8 @@ _handlers: dict[int, Callable] = {
 }
 
 
-def set_handler(type_code: int, handler: Callable) -> None:
-    _handlers[type_code] = handler
+def set_decoder(type_code: int, decoder: Callable) -> None:
+    _decoders[type_code] = decoder
 
 
 def _handle_any(twine_stream) -> Any:
@@ -175,12 +175,12 @@ def _handle_any(twine_stream) -> Any:
     data_type, subtype = type_byte & 0xF0, type_byte & 0x0F
 
     # Verify that a handler exists for the data
-    if data_type not in _handlers:
-        error_msg = f"type {hex(data_type)} has no handler"
+    if data_type not in _decoders:
+        error_msg = f"type {hex(data_type)} has no decoder"
         raise DecodeError(error_msg)
 
-    handler = _handlers.get(data_type)
-    decoded = handler(subtype, twine_stream)
+    decoder = _decoders.get(data_type)
+    decoded = decoder(subtype, twine_stream)
 
     return decoded
 

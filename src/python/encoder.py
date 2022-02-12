@@ -129,7 +129,7 @@ def _handle_list(data: list) -> Generator:
     for element in data:
         yield from _handle_any(element)
 
-_handlers: dict[str, Callable] = {
+_encoders: dict[str, Callable] = {
     "NoneType": _handle_none,
     "bool": _handle_bool,
     "int": _handle_int,
@@ -138,21 +138,21 @@ _handlers: dict[str, Callable] = {
     "list": _handle_list,
 }
 
-def set_handler(data_type: type, handler: Callable) -> None:
+def set_encoder(data_type: type, encoder: Callable) -> None:
     type_name = data_type.__name__
-    _handlers[type_name] = handler
+    _encoders[type_name] = encoder
 
 
 def _handle_any(data) -> Generator:
     type_name: str = type(data).__name__
 
     # Verify that a handler exists for the data
-    if type_name not in _handlers:
-        error_msg = f"type {type_name!r} has no handler"
+    if type_name not in _encoders:
+        error_msg = f"type {type_name!r} has no encoder"
         raise EncodeError(error_msg)
 
-    handler: Callable = _handlers.get(type_name)
-    encoded: bytearray = handler(data)
+    encoder: Callable = _encoders.get(type_name)
+    encoded: bytearray = encoder(data)
 
     yield from encoded
 
