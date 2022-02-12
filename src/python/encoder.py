@@ -99,8 +99,8 @@ def _handle_float(data: float) -> Generator:
         return
 
     # Convert to single precision float
-    single_precision_bytes: bytes = struct_pack("f", data)
-    single_precision_value: float = struct_unpack("f", single_precision_bytes)[0]
+    single_precision_bytes: bytes = struct_pack("!f", data)
+    single_precision_value: float = struct_unpack("!f", single_precision_bytes)[0]
 
     # If single-precision float does not have any loss of precision, then
     # store as a single-precision float. If there is loss of precision,
@@ -113,7 +113,7 @@ def _handle_float(data: float) -> Generator:
     else:
         # Yield type byte, and then the bytes for the double-precision float
         yield 0x32
-        yield from struct_pack("d", data)
+        yield from struct_pack("!d", data)
 
 
 def _handle_str(data: str) -> Generator:

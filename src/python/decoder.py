@@ -76,12 +76,12 @@ def _handle_float(subtype: int, twine_stream: Iterator) -> float:
 
     # Single precision
     if precision == 0x01:
-        unpack_type = "f"
+        unpack_type = "!f"
         byte_count = 4
 
     # Double precision
     elif precision == 0x02:
-        unpack_type = "d"
+        unpack_type = "!d"
         byte_count = 8
 
     # NOTE: Quadruple precision support has not been added yet
