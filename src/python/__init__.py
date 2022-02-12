@@ -3,7 +3,10 @@ from typing import Callable
 from .decoder import load, loadb, set_decoder
 from .encoder import dump, dumpb, set_encoder
 
-def set_handler(data_type: type, type_code: int, encoder: Callable, decoder: Callable) -> None:
+
+def set_handler(
+    data_type: type, type_code: int, encoder: Callable, decoder: Callable
+) -> None:
     """Set the handlers for a data type
 
     Args:

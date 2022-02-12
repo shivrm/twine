@@ -8,28 +8,30 @@ def _ceil_divide(dividend: float, divisor: int) -> int:
     # https://stackoverflow.com/a/17511341/16990573
     return -(dividend // -divisor)
 
+
 def _iter_to_byte_chunks(iterable, chunk_size=512) -> Generator:
     # Items in current chunk, and number of items in current chunk
     chunk_content = bytearray()
     content_size = 0
-    
+
     # Iterate over the iterable and add each to the chunk
     for item in iterable:
         chunk_content.append(item)
         content_size += 1
-        
+
         # If the chunk contains as many elements as the chunk size,
         # then yield the chunk, and begin a new chunk
         if content_size == chunk_size:
             yield chunk_content
-            
+
             chunk_content = bytearray()
             content_size = 0
-            
+
     # If there are any remaining elements, yield them as well
     if content_size:
         yield chunk_content
-    
+
+
 class EncodeError(Exception):
     pass
 
@@ -93,7 +95,7 @@ def _handle_float(data: float) -> Generator:
         return
 
     elif data == float("-inf"):
-        yield 0x3b
+        yield 0x3B
         return
 
     # Convert to single precision float
@@ -107,7 +109,7 @@ def _handle_float(data: float) -> Generator:
         # Yield type byte, and then the bytes for the single-precision float
         yield 0x31
         yield from single_precision_bytes
-        
+
     else:
         # Yield type byte, and then the bytes for the double-precision float
         yield 0x32
@@ -115,19 +117,20 @@ def _handle_float(data: float) -> Generator:
 
 
 def _handle_str(data: str) -> Generator:
-    yield 0x40 # Yield type byte
-    yield from _handle_int(len(data)) # Yield length bytes
-    yield from data.encode("utf8") # Yield char data
+    yield 0x40  # Yield type byte
+    yield from _handle_int(len(data))  # Yield length bytes
+    yield from data.encode("utf8")  # Yield char data
 
 
 def _handle_list(data: list) -> Generator:
 
-    yield 0x50 # Yield type byte
-    yield from _handle_int(len(data)) # Yield length bytes
+    yield 0x50  # Yield type byte
+    yield from _handle_int(len(data))  # Yield length bytes
 
     # Yield each element after encoding it
     for element in data:
         yield from _handle_any(element)
+
 
 _encoders: dict[str, Callable] = {
     "NoneType": _handle_none,
@@ -137,6 +140,7 @@ _encoders: dict[str, Callable] = {
     "str": _handle_str,
     "list": _handle_list,
 }
+
 
 def set_encoder(data_type: type, encoder: Callable) -> None:
     type_name = data_type.__name__
@@ -156,7 +160,8 @@ def _handle_any(data) -> Generator:
 
     yield from encoded
 
-def dump(data, file: BinaryIO, chunk_size: int=512) -> None:
+
+def dump(data, file: BinaryIO, chunk_size: int = 512) -> None:
     """Encode data and write to a file
 
     Args:
@@ -167,11 +172,12 @@ def dump(data, file: BinaryIO, chunk_size: int=512) -> None:
     """
     # Encode the data
     encoded = _handle_any(data)
-    
+
     # Write to file in chunks
     for chunk in _iter_to_byte_chunks(encoded, chunk_size):
         file.write(chunk)
-        
+
+
 def dumpb(data, lazy=False) -> Union[bytearray, Generator]:
     """Encodes data and return as a bytearray
 
@@ -186,7 +192,7 @@ def dumpb(data, lazy=False) -> Union[bytearray, Generator]:
     """
     # Encode the data
     encoded = _handle_any(data)
-    
+
     # Return as generator if lazy, else convert it into a bytearray
     if lazy:
         return encoded

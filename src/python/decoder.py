@@ -2,18 +2,20 @@ from struct import unpack as struct_unpack
 
 from typing import Any, BinaryIO, Callable, Iterator, Union
 
+
 def _file_to_stream(file: BinaryIO, chunk_size=512):
     while True:
         # Read while not EOF
-        
+
         data = file.read(chunk_size)
-        
+
         if not data:
             # EOF
             break
-        
+
         # Yield each byte
         yield from data
+
 
 class DecodeError(Exception):
     pass
@@ -184,6 +186,7 @@ def _handle_any(twine_stream) -> Any:
 
     return decoded
 
+
 def load(file: BinaryIO, chunk_size=512) -> Any:
     """Loads twine data from a file object
 
@@ -197,10 +200,11 @@ def load(file: BinaryIO, chunk_size=512) -> Any:
     """
     # Convert file to stream
     stream = _file_to_stream(file, chunk_size=chunk_size)
-    
+
     # Decode the data and return it
     decoded = _handle_any(stream)
     return decoded
+
 
 def loadb(data: bytes) -> Any:
     """Loads twine data from a bytearray
