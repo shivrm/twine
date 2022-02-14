@@ -17,7 +17,7 @@ types, such as `int`, `float`, and `str`.
 Each data structure also has a *subtype*. This contains additional information like
 the precision of a `float`, or the length of an `int` in bytes.
 
-For a full reference of types and subtypes, please refer to the types [reference](types.md)
+For a full list of types and subtypes, please refer to the [types reference](types.md)
 
 The handler of a type can also require some arguments. For example a `list` may require an argument specifying it's length
 
@@ -37,4 +37,3 @@ Where:
      - b. `0001` is the subtype, and indicates an 8-bit unsigned integer
      - c. `0000 1101` contains the data of the int, and indicates the number 13
 4. `....` the succeeding bytes contain the data of the list
-
