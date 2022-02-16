@@ -1,4 +1,4 @@
-# 🧵 twine
+# twine
 
 `twine` is a simple data serialization format that allows you to share data across different systems.
 
