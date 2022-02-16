@@ -2,7 +2,7 @@
 
 `twine` is a simple data serialization format that allows you to share data across different systems.
 
-Click [here](docs) for documentation
+Click [here](https://shivrm.github.io/twine/docs) for documentation
 
 # Why twine?
 
@@ -44,4 +44,4 @@ guidelines. If you want to report a bug or suggest a feature, feel free to
 
 # License
 
-twine is licensed under the MIT License. See [LICENSE](LICENSE)
+twine is licensed under the MIT License.
