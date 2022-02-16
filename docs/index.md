@@ -8,7 +8,7 @@ Twine was developed with the purpose of being extensible and easy to implement.
 
 ## Usage
 Twine is currently available in the following languages:
- - [Python](python.md)
+ - [Python](python)
 
 ## Structure
 Data in twine files is stored in *data structures*. Data sturctures have different
@@ -17,7 +17,7 @@ types, such as `int`, `float`, and `str`.
 Each data structure also has a *subtype*. This contains additional information like
 the precision of a `float`, or the length of an `int` in bytes.
 
-For a full list of types and subtypes, please refer to the [types reference](types.md)
+For a full list of types and subtypes, please refer to the [types reference](types)
 
 The handler of a type can also require some arguments. For example a `list` may require an argument specifying it's length
 

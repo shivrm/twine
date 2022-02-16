@@ -73,7 +73,7 @@ Set the handlers for a data type
 ```py
 def set_handlers(data_type: type, type_code: int, encoder: Callable, decoder: Callable) -> None:
 ```
-Args:
+### Arguments
  - `data_type` (`type`): The type of the data, used when encoding
  - `type_code` (`int`): Code used to identify type when decoding
  - `encoder` (`Callable`): Function to call when encoding data
