@@ -1,7 +1,7 @@
 from typing import Callable
 
-from .decoder import load, loadb, set_decoder
-from .encoder import dump, dumpb, set_encoder
+from .decoder import load, loads, set_decoder
+from .encoder import dump, dumps, set_encoder
 
 
 def set_handler(

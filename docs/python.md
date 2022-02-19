@@ -18,7 +18,7 @@ def load(file: BinaryIO, chunk_size=512) -> any:
 
 ---
 
-## function `loadb`
+## function `loads`
 
 Loads twine data from a bytes-like object
 
@@ -49,7 +49,7 @@ def dump(data, file: BinaryIO, chunk_size: int = 512) -> None:
 
 ---
 
-## function `dumpb`
+## function `dumps`
 
 Encodes data and returns it either as a `bytes` object or as a `generator`.
 

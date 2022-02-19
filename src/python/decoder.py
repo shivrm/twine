@@ -206,7 +206,7 @@ def load(file: BinaryIO, chunk_size=512) -> Any:
     return decoded
 
 
-def loadb(data: bytes) -> Any:
+def loads(data: bytes) -> Any:
     """Loads twine data from a bytearray
 
     Args:

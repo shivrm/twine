@@ -178,7 +178,7 @@ def dump(data, file: BinaryIO, chunk_size: int = 512) -> None:
         file.write(chunk)
 
 
-def dumpb(data, lazy=False) -> Union[bytes, Generator]:
+def dumps(data, lazy=False) -> Union[bytes, Generator]:
     """Encodes data and return as a bytearray
 
     Args:
